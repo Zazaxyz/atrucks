@@ -1,14 +1,18 @@
-#автомотизировать headers
+#автомAтизировать headers
 from os import write
 import requests
 # from requests.sessions import BaseAdapter
 from bs4 import BeautifulSoup
+import json
+
 
 rs = requests.Session()
 lkeys = []
 lvals = []
 log,pas = 'login', 'password'
 #хэдер, без него не работает. надо придумать как вытащить из куков  /  вставлять из data.header запроса get
+#возможно не работало из-за типов данных. тут в словаре все строка. из хедера сессии возможно тип другой, проверить опосля...
+
 headers = {
     'User-Agent':'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/94.0',
     'Accept' : 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -21,7 +25,6 @@ headers = {
     'Referer': 'https://www.atrucks.su/user/login/'
     }
 current_headers = {}
-
 
 def get_token():
 #Возвращает токен с сайта из куков в формате str
@@ -62,14 +65,12 @@ def check_session():
         print('log: Сессия активна!')
         return True
     else:
-        print('log: Сессия неактивна, нужна авторизация')
-        
+        print('log: Сессия неактивна, нужна авторизация')       
         get_auth() #неуверен нужно ли..
         
 
 #запускает до авторизации.
 check_session()
-
 
 #перебор заказчиков в кабинете
 #https://www.atrucks.su/carrier/auctions/
@@ -117,20 +118,65 @@ def get_ca_and_ids():
         resIds = soup.findAll('span', {'class':'favorite'})
         for item_idc in resIds:
             item_idc = item_idc.get('data-id')
-            print(item_idc) # ид конторы( ИЗБРАННОЕ И ОБЩАЯ ПРОПУСКАЕТСЯ !!!! пересчитать списки на всяк случай)
+            #print(item_idc) # ид конторы( ИЗБРАННОЕ И ОБЩАЯ ПРОПУСКАЕТСЯ !!!! пересчитать списки на всяк случай)
             lic.append(item_idc)
         return dict(zip(lic, lnc))
 
 
 check_session()
-print(get_ca_and_ids())
 
-# data = get_ca_and_ids()
+data_comps = get_ca_and_ids()
 
 
-#очень долго парсит......., по-моему bs4 тупит. переустановить! еще и пустой словарь вернул (((
-# print(type(check_comps_and_ids()))
-# # >>> log: Сессия неактивна, нужна авторизация
-# # >>> log: Успешная авторизация
-# # >>> <class 'dict'>
-# print(check_comps_and_ids())
+def send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment):
+    print(f'{comp_name,id_z}',data_load,'|',st_pl,'-',en_pl,'|',st_price,curr,'|',tr_need,tr_need_d, '|',bvstr,comment)\
+    #посокращать имена городов: Санкт-Петербург - СПБ. Ленинградская обл. - (ЛО), Екатеринбург - Екат ит.д
+
+
+
+# пробуем обрабатывать
+def pars_1(city = 'None', per_page = 300): # None - общая по дефолту, не разбирал строку особо, возможн оможно сделать иначе, хз
+    data = rs.get(f'https://www.atrucks.su/carrier/auctions/lots/general/quick/?page=1&per_page={per_page}&sort%5B%5D=load_range&ids=&mds=')
+    jat = json.loads(data.text) 
+    st, sum_auc = 0, 0
+    # перебор лотов
+    for lot in jat['lots']:
+    #проверка на встречку
+        bvstr = ''
+        if("wait_for_bids" in lot):
+            bvstr='встречка открыта'
+        else:
+            bvstr='встречки нету'
+        #
+        comp_name = data_comps[str(lot['company_id'])]
+        if 'labels' in lot:
+            comment = lot['labels']
+            comment = str(comment).split(':')
+            comment = comment[-1].split('}')
+            comment = comment[0]
+        else:
+            comment = ''
+        id_z = lot['text_id'] #-------------------------------------------------------------ид заказа
+        data_load = lot['load_range'] #-----------------------------------------------------дата погрузки
+        st_pl = ''.join(lot['origins']) #---------------------------------------------------где грузимся
+        en_pl = lot['destinations'] #-------------------------------------------------------выгрузка
+        st_price = lot['start_price']#------------------------------------------------------стоимость(заказчик)
+        curr = lot['currency'] #------------------------------------------------------------валюта
+        tr_need = lot['transport']['transport:truck_mode']  #-------------------------------требуемый транспорт
+        tr_need_d = lot['transport']['transport:truck_kinds'] #-----------------------------доп к транспорту
+        # print(st_pl, type(st_pl))
+        
+        if city == 'None': # все города погрузки
+            sum_auc += 1
+            send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
+        elif city.lower() in str(st_pl.lower()):
+            sum_auc += 1
+            send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
+    print("По запросу итого аукционов: ",'>>>',sum_auc)
+
+#предполагаю высокую нагрузку из-за вызова функции вывода.
+# то что спарсили, в словарь, и передовать на вывод словарь. Так вызовем только 1 раз функцию. сделать потом
+# фильтрация выгрузок.....
+
+pars_1(city='Моск') # оно работает :))
+

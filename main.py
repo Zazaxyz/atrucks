@@ -119,10 +119,11 @@ def get_ca_and_ids():
             item_idc = item_idc.get('data-id')
             print(item_idc) # ид конторы( ИЗБРАННОЕ И ОБЩАЯ ПРОПУСКАЕТСЯ !!!! пересчитать списки на всяк случай)
             lic.append(item_idc)
+        return dict(zip(lic, lnc))
 
 
 check_session()
-get_ca_and_ids()
+print(get_ca_and_ids())
 
 # data = get_ca_and_ids()
 

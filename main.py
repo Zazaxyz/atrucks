@@ -9,7 +9,7 @@ import json
 rs = requests.Session()
 lkeys = []
 lvals = []
-log,pas = 'login', 'password'
+log,pas = 'log', 'pass'
 #хэдер, без него не работает. надо придумать как вытащить из куков  /  вставлять из data.header запроса get
 #возможно не работало из-за типов данных. тут в словаре все строка. из хедера сессии возможно тип другой, проверить опосля...
 
@@ -139,6 +139,7 @@ def pars_1(city = 'None', per_page = 300): # None - общая по дефолт
     data = rs.get(f'https://www.atrucks.su/carrier/auctions/lots/general/quick/?page=1&per_page={per_page}&sort%5B%5D=load_range&ids=&mds=')
     jat = json.loads(data.text) 
     st, sum_auc = 0, 0
+    ret_list = []
     # перебор лотов
     for lot in jat['lots']:
     #проверка на встречку
@@ -168,15 +169,28 @@ def pars_1(city = 'None', per_page = 300): # None - общая по дефолт
         
         if city == 'None': # все города погрузки
             sum_auc += 1
-            send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
+            ret_list.append(str(comp_name) +' > ' + str(id_z) + \
+                ' > ' + str(data_load) + ' > ' + str(st_pl) + \
+                ' > ' + str(en_pl) +' > ' + str(st_price) + \
+                ' > ' + str(curr) +' > ' + str(tr_need) + \
+                ' > ' + str(tr_need_d) +' > ' + str(bvstr) +' > ' + str(comment))
+            # print(ret_list)
+            # send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
         elif city.lower() in str(st_pl.lower()):
             sum_auc += 1
-            send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
+            ret_list.append(str(comp_name) +' > ' + str(id_z) + \
+                ' > ' + str(data_load) + ' > ' + str(st_pl) + \
+                ' > ' + str(en_pl) +' > ' + str(st_price) + \
+                ' > ' + str(curr) +' > ' + str(tr_need) + \
+                ' > ' + str(tr_need_d) +' > ' + str(bvstr) +' > ' + str(comment))
+            # print(ret_list)
+            # send_out(comp_name,id_z, data_load, st_pl, en_pl, st_price, curr, tr_need, tr_need_d, bvstr, comment)
     print("По запросу итого аукционов: ",'>>>',sum_auc)
+    return ret_list
 
 #предполагаю высокую нагрузку из-за вызова функции вывода.
 # то что спарсили, в словарь, и передовать на вывод словарь. Так вызовем только 1 раз функцию. сделать потом
 # фильтрация выгрузок.....
 
-pars_1(city='Моск') # оно работает :))
+# print(pars_1(city='москва')) # оно работает :))
 
